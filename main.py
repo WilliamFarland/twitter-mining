@@ -13,7 +13,7 @@ BEARER_TOKEN = DS501_BEARER_TOKEN
 # Put keywords for searching here
 KEYWORDS = "optum lang:en"
 # Set max results here
-MAX_RESULTS = 10
+MAX_RESULTS = 100
 
 
 class TwitterAPI:
@@ -51,6 +51,7 @@ class TwitterAPI:
         query_params = {
             'query': self.keyword,
             'expansions': 'author_id,in_reply_to_user_id,geo.place_id,referenced_tweets.id',
+            'max_results': self.max_results
              }
 
         return search_url, query_params
