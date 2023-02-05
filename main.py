@@ -1,8 +1,9 @@
-import requests
-import json
-import os
-import codecs
-import re
+import requests  # library for making api calls
+import json  # library for easy json manipulation
+import codecs  # provides access to the internal Python codec registry
+import re  # regex library
+from set_env import *  # to hide api key from code
+import os  # library for interacting w/ os
 
 
 class TwitterAPI:
@@ -38,7 +39,7 @@ class TwitterAPI:
 
         query_params = {
             'query': self.keyword,
-            'expansions': 'author_id,in_reply_to_user_id,geo.place_id',
+            'expansions': 'author_id,in_reply_to_user_id,geo.place_id,referenced_tweets.id',
              }
 
         return search_url, query_params
@@ -59,13 +60,22 @@ class TwitterAPI:
 
 
 class Tweet:
-    def __init__(self, id, text):
+    def __init__(self, id, text, author_id, referenced_tweets, reply_user=None):
+        # Init Vars
         self.id = id
+        self.in_reply_to_user_id = reply_user
+        self.author_id = author_id
+        self.referenced_tweets = referenced_tweets
 
-        self.text = re.sub(r"[^a-zA-Z0-9 ]", "", text)
+        # Modify vars if needed
+        self.text = re.sub(r"[^a-zA-Z0-9@ \t]", "", text)
 
+        # Create out json
         self.out = json.dumps({
-            'text': self.text
+            'text': self.text,
+            'in_reply_to_user_id': self.in_reply_to_user_id,
+            'author_id': self.author_id,
+
         })
 
     def __str__(self):
@@ -76,8 +86,9 @@ def main():
     # Tweet Collection
     tweet_data = {}
     # Put keywords here
-    keywords = "xbox lang:en"
-    bearer_token = os.environ.get('TWITTER-BEARER-TOKEN')
+    keywords = "healthcare lang:en"
+    # Put bearer_token here, you could just use plaintext but be careful about leaking it
+    bearer_token = DS501_BEARER_TOKEN
     # Initialize base twitter class
     twitter = TwitterAPI(bearer_token, keywords, max_results=10)
     # Try connecting to endpoint
@@ -87,14 +98,29 @@ def main():
     for entries in data:
         id = entries['id']
         text = entries['text']
-        new_tweet = Tweet(id, text)
+        author_id = entries['author_id']
+        referenced_tweets = entries.get('referenced_tweets', None)
+        if referenced_tweets:
+            referenced_tweets = referenced_tweets[0]['type']
+        else:
+            referenced_tweets = 'regular tweet'
+        new_tweet = Tweet(id, text, author_id, referenced_tweets)
         tweet_data[id] = new_tweet
 
-    # print(json.dumps(json_response, indent=4, sort_keys=True))
-    with codecs.open("out.txt", 'w', 'utf-8') as outfile:
+    # check if file exists, if it doesn't create header line
+    if not os.path.isfile('out.txt'):
+        with codecs.open("out.txt", 'a', 'utf-8') as outfile:
+            outfile.write("key, author id, in reply to user id, tweet type, text\n")
+
+    with codecs.open("out.txt", 'a', 'utf-8') as outfile:
         for key in tweet_data.keys():
 
-            outfile.write(f'{key}, {tweet_data[key]} \n')
+            outfile.write(f'{key}, '
+                          f'{tweet_data[key].author_id}, '
+                          f'{tweet_data[key].in_reply_to_user_id}, '
+                          f'{tweet_data[key].referenced_tweets}, '
+                          f'{tweet_data[key].text} \n'
+                          )
 
 
 if __name__ == '__main__':
