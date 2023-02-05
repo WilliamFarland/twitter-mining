@@ -14,6 +14,8 @@ BEARER_TOKEN = DS501_BEARER_TOKEN
 KEYWORDS = "optum lang:en"
 # Set max results here
 MAX_RESULTS = 100
+# Request Rate (non-elevated api v2 limited to 25 requests per 15 min or 1.67 tweets per min being conservative here)
+REQUESTS_PER_MIN = 1
 
 
 class TwitterAPI:
@@ -77,11 +79,12 @@ class TwitterAPI:
             text = entries['text']
             author_id = entries['author_id']
             referenced_tweets = entries.get('referenced_tweets', None)
+            place = entries.get('geo.place_id')
             if referenced_tweets:
                 referenced_tweets = referenced_tweets[0]['type']
             else:
                 referenced_tweets = 'regular tweet'
-            new_tweet = Tweet(id, text, author_id, referenced_tweets)
+            new_tweet = Tweet(id, text, author_id, referenced_tweets, place)
             tweet_data[id] = new_tweet
 
         return tweet_data
@@ -91,12 +94,13 @@ class Tweet:
     """
     Nice little storage class for tweets
     """
-    def __init__(self, id, text, author_id, referenced_tweets, reply_user=None):
+    def __init__(self, id, text, author_id, referenced_tweets, place, reply_user=None):
         # Init Vars
         self.id = id
         self.in_reply_to_user_id = reply_user
         self.author_id = author_id
         self.referenced_tweets = referenced_tweets
+        self.place = place
 
         # Modify vars if needed
         self.text = re.sub(r"[^a-zA-Z0-9@ \t]", "", text)
@@ -126,14 +130,26 @@ def write_to_file(tweet_data):
 
 
 def main():
-    # Initialize base twitter class
-    twitter = TwitterAPI(BEARER_TOKEN, KEYWORDS, max_results=MAX_RESULTS)
-    # Try getting data
-    twitter.connect_to_endpoint()
-    # Add data to tweet struct format
-    tweet_data = twitter.create_tweets()
-    # Write data to out file by calling function
-    write_to_file(tweet_data)
+    # init start timer for looping to twitter api
+    start_time = time.time()
+    num_requests = 1
+    while True:
+        if (time.time() - start_time)/60 > REQUESTS_PER_MIN:
+            print(f"Sending a request to twitter api. \n Program has sent {num_requests} requests this run.")
+            # Initialize base twitter class
+            twitter = TwitterAPI(BEARER_TOKEN, KEYWORDS, max_results=MAX_RESULTS)
+            # Try getting data
+            twitter.connect_to_endpoint()
+            # increment req counter
+            num_requests += 1
+            # Add data to tweet struct format
+            tweet_data = twitter.create_tweets()
+            # Write data to out file by calling function
+            write_to_file(tweet_data)
+            # reset timer
+            start_time = time.time()
+        # sleep for a few secs, so cpu can nap
+        time.sleep(10)
 
 
 if __name__ == '__main__':
