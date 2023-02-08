@@ -53,7 +53,8 @@ class TwitterAPI:
         query_params = {
             'query': self.keyword,
             'expansions': 'author_id,in_reply_to_user_id,geo.place_id,referenced_tweets.id',
-            'max_results': self.max_results
+            'max_results': self.max_results,
+            'tweet.fields': 'public_metrics'
              }
 
         return search_url, query_params
@@ -84,7 +85,15 @@ class TwitterAPI:
                 referenced_tweets = referenced_tweets[0]['type']
             else:
                 referenced_tweets = 'regular tweet'
-            new_tweet = Tweet(id, text, author_id, referenced_tweets, place)
+
+            public_metrics = entries.get('public_metrics')
+            retweets = public_metrics.get('retweet_count')
+            replies = public_metrics.get('reply_count')
+            likes = public_metrics.get('like_count')
+            quotes = public_metrics.get('quote_count')
+            impressions = public_metrics.get('impressions_count')
+
+            new_tweet = Tweet(id, text, author_id, referenced_tweets, place, retweets, replies, likes, quotes, impressions)
             tweet_data[id] = new_tweet
 
         return tweet_data
@@ -94,13 +103,18 @@ class Tweet:
     """
     Nice little storage class for tweets
     """
-    def __init__(self, id, text, author_id, referenced_tweets, place, reply_user=None):
+    def __init__(self, id, text, author_id, referenced_tweets, place, retweets, replies, likes, quotes, impressions, reply_user=None):
         # Init Vars
         self.id = id
         self.in_reply_to_user_id = reply_user
         self.author_id = author_id
         self.referenced_tweets = referenced_tweets
         self.place = place
+        self.retweets = retweets
+        self.replies = replies
+        self.likes = likes
+        self.quotes = quotes
+        self.impressions = impressions
 
         # Modify vars if needed
         self.text = re.sub(r"[^a-zA-Z0-9@ \t]", "", text)
@@ -116,15 +130,20 @@ def write_to_file(tweet_data):
     # check if file exists, if it doesn't create header line
     if not os.path.isfile(OUT_FIlE):
         with codecs.open(OUT_FIlE, 'a', 'utf-8') as outfile:
-            outfile.write("key, mined time, author id, tweet type, text\n")
+            outfile.write("key, mined time, author id, tweet type, retweets, replies, likes, quotes, impressions, text\n")
 
     with codecs.open(OUT_FIlE, 'a', 'utf-8') as outfile:
         for key in tweet_data.keys():
-
+            #  retweets, replies, likes, quotes, impressions, reply_user=None
             outfile.write(f'{key}, '
                           f'{datetime.now()}, '
                           f'{tweet_data[key].author_id}, '
                           f'{tweet_data[key].referenced_tweets}, '
+                          f'{tweet_data[key].retweets}, '
+                          f'{tweet_data[key].replies}, '
+                          f'{tweet_data[key].likes}, '
+                          f'{tweet_data[key].quotes}, '
+                          f'{tweet_data[key].impressions}, '
                           f'{tweet_data[key].text} \n'
                           )
 
