@@ -11,7 +11,7 @@ OUT_FIlE = 'Data/out.txt'
 # Put bearer_token here, you could just use plaintext but be careful about leaking it
 BEARER_TOKEN = DS501_BEARER_TOKEN
 # Put keywords for searching here
-KEYWORDS = "optum lang:en"
+KEYWORDS = "unitedhealth optum lang:en"
 # Set max results here
 MAX_RESULTS = 100
 # Request Rate (non-elevated api v2 limited to 25 requests per 15 min or 1.67 tweets per min being conservative here)
@@ -149,7 +149,7 @@ def write_to_file(tweet_data):
 
 
 def main():
-    # init start timer for looping to twitter api
+    # init start timer for looping to Twitter api
     start_time = time.time()
     num_requests = 1
     while True:
